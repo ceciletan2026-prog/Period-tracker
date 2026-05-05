@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Period & Symptom Tracker</title>
+    <style>
+        :root {
+            --primary-pink: #ff8fa3;
+            --dark-pink: #ff4d6d;
+            --selected-bg: #f0eff4;
+            --bg-color: #fffafb; 
+            --cute-lilac: #bda6ff;
+            --cute-peach: #ffb4a2;
+            --egg-yellow: #ffd166;
+            --fuzzy-blue: #a2d2ff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(255, 180, 162, 0.2);
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        h3#monthDisplay { color: #6d597a; font-weight: 700; margin: 0; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            text-align: center;
+        }
+
+        .day-name { font-weight: bold; font-size: 0.75em; color: #d4a373; padding-bottom: 10px; }
+
+        .day {
+            padding: 12px 0;
+            cursor: pointer;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            font-size: 0.9em;
+            color: #4a4e69;
+            user-select: none;
+        }
+
+        .today { font-weight: 800; color: var(--dark-pink); }
+        .today::after {
+            content: '';
+            position: absolute;
+            bottom: 4px; left: 50%;
+            transform: translateX(-50%);
+            width: 4px; height: 4px;
+            background: var(--dark-pink);
+            border-radius: 50%;
+        }
+
+        .selected { background-color: var(--selected-bg); }
+
+        /* Fuzzy Blue Shape (Double Tap) */
+        .blue-fuzzy::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 75%; height: 75%;
+            background-color: var(--fuzzy-blue);
+            filter: blur(4px);
+            border-radius: 40% 60% 50% 50% / 50% 40% 60% 50%;
+            z-index: -2;
+            opacity: 0.6;
+        }
+
+        /* Period Red Oblong */
+        .period-day::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 70%;
+            border: 2.5px solid var(--dark-pink);
+            border-radius: 50% / 40%;
+            z-index: -1;
+            background-color: rgba(255, 77, 109, 0.08);
+        }
+
+        /* Ovulation Egg Shape */
+        .ovulation-day::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%; height: 85%;
+            border: 2px dashed var(--egg-yellow);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            z-index: -1;
+            background-color: rgba(255, 209, 102, 0.15);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85em;
+            transition: transform 0.1s;
+        }
+
+        button:active { transform: scale(0.95); }
+
+        .btn-nav { background: #fdf0ed; color: #6d597a; padding: 8px 12px; border-radius: 12px; }
+        .btn-start { background-color: var(--cute-lilac); color: white; }
+        .btn-end { background-color: var(--cute-peach); color: white; }
+        .btn-del { background-color: #f7f7f7; color: #b0b0b0; grid-column: span 2; margin-top: 5px; font-weight: 400; }
+
+        .stats {
+            margin-top: 25px;
+            padding: 15px;
+            background: #fffcfb;
+            border-radius: 20px;
+            border: 1px solid #fef1ee;
+        }
+
+        .cycle-item { 
+            display: flex; justify-content: space-between; 
+            padding: 10px 0; border-bottom: 1px dashed #ffd7ba;
+            font-size: 0.8em; color: #6d597a;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="calendar-header">
+        <button class="btn-nav" onclick="changeMonth(-1)">❮</button>
+        <h3 id="monthDisplay"></h3>
+        <button class="btn-nav" onclick="changeMonth(1)">❯</button>
+    </div>
+    <div class="calendar-grid" id="calendarGrid"></div>
+    
+    <div class="controls">
+        <button class="btn-start" onclick="logDate('start')">Period Starts</button>
+        <button class="btn-end" onclick="logDate('end')">Period Ends</button>
+        <button class="btn-del" onclick="clearDate()">Clear Selected Date</button>
+    </div>
+    <div class="stats">
+        <strong style="font-size: 0.85em;">Cycle Intervals (Start to Start)</strong>
+        <div id="cycleStats"></div>
+    </div>
+</div>
+
+<script>
+    let currentViewDate = new Date();
+    
+    const getLocalStr = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    let selectedDateStr = getLocalStr(new Date());
+    let logs = JSON.parse(localStorage.getItem('periodLogs')) || [];
+    let fuzzyDays = JSON.parse(localStorage.getItem('fuzzyDays')) || [];
+
+    function render() {
+        const grid = document.getElementById('calendarGrid');
+        const monthDisplay = document.getElementById('monthDisplay');
+        grid.innerHTML = '';
+
+        const year = currentViewDate.getFullYear();
+        const month = currentViewDate.getMonth();
+        monthDisplay.innerText = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(currentViewDate);
+
+        ['S','M','T','W','T','F','S'].forEach(d => {
+            const div = document.createElement('div');
+            div.className = 'day-name';
+            grid.appendChild(div).innerText = d;
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+        const todayStr = getLocalStr(new Date());
+        const ovulationDates = calculateOvulationDays();
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'day';
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            
+            dayDiv.innerText = i;
+            
+            dayDiv.onclick = () => { selectedDateStr = dateStr; render(); };
+            
+            dayDiv.ondblclick = (e) => {
+                e.preventDefault();
+                toggleFuzzy(dateStr);
+            };
+
+            if (todayStr === dateStr) dayDiv.classList.add('today');
+            if (selectedDateStr === dateStr) dayDiv.classList.add('selected');
+            if (isPeriodDate(dateStr)) dayDiv.classList.add('period-day');
+            if (ovulationDates.includes(dateStr)) dayDiv.classList.add('ovulation-day');
+            if (fuzzyDays.includes(dateStr)) dayDiv.classList.add('blue-fuzzy');
+
+            grid.appendChild(dayDiv);
+        }
+        calculate();
+    }
+
+    function toggleFuzzy(dateStr) {
+        if (fuzzyDays.includes(dateStr)) {
+            fuzzyDays = fuzzyDays.filter(d => d !== dateStr);
+        } else {
+            fuzzyDays.push(dateStr);
+        }
+        localStorage.setItem('fuzzyDays', JSON.stringify(fuzzyDays));
+        render();
+    }
+
+    function calculateOvulationDays() {
+        return logs
+            .filter(l => l.type === 'start')
+            .map(l => {
+                const d = new Date(l.date);
+                d.setDate(d.getDate() - 14);
+                return getLocalStr(d);
+            });
+    }
+
+    function isPeriodDate(dateStr) {
+        const sorted = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+        let lastStart = null;
+        for (let entry of sorted) {
+            if (entry.type === 'start') {
+                lastStart = new Date(entry.date);
+                if (dateStr === entry.date) return true;
+            } else if (entry.type === 'end' && lastStart) {
+                const cur = new Date(dateStr);
+                if (cur >= lastStart && cur <= new Date(entry.date)) return true;
+                lastStart = null;
+            }
+        }
+        return logs.some(l => l.date === dateStr && (l.type === 'start' || l.type === 'end'));
+    }
+
+    function logDate(type) {
+        logs = logs.filter(l => l.date !== selectedDateStr);
+        logs.push({ date: selectedDateStr, type: type });
+        save();
+    }
+
+    function clearDate() {
+        logs = logs.filter(l => l.date !== selectedDateStr);
+        fuzzyDays = fuzzyDays.filter(d => d !== selectedDateStr);
+        localStorage.setItem('fuzzyDays', JSON.stringify(fuzzyDays));
+        save();
+    }
+
+    function save() {
+        localStorage.setItem('periodLogs', JSON.stringify(logs));
+        render();
+    }
+
+    function calculate() {
+        const container = document.getElementById('cycleStats');
+        container.innerHTML = '';
+        const starts = [...new Set(logs.filter(l => l.type === 'start').map(l => l.date))].sort();
+        if (starts.length < 2) {
+            container.innerHTML = '<p style="color:#999; font-size:0.75em">Log 2 starts to see interval.</p>';
+            return;
+        }
+        for (let i = 1; i < starts.length; i++) {
+            const diff = Math.round((new Date(starts[i]) - new Date(starts[i-1])) / (1000 * 60 * 60 * 24));
+            const item = document.createElement('div');
+            item.className = 'cycle-item';
+            item.innerHTML = `<span>From ${starts[i-1]}</span> <strong>${diff} days</strong>`;
+            container.appendChild(item);
+        }
+    }
+
+    function changeMonth(step) {
+        currentViewDate.setMonth(currentViewDate.getMonth() + step);
+        render();
+    }
+
+    render();
+</script>
+
+</body>
+</html>
