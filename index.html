@@ -33,6 +33,7 @@
             box-shadow: 0 15px 35px rgba(255, 180, 162, 0.2);
             width: 100%;
             max-width: 380px;
+            box-sizing: border-box;
         }
 
         .calendar-header {
@@ -141,18 +142,33 @@
         .btn-end { background-color: var(--cute-peach); color: white; }
         .btn-del { background-color: #f7f7f7; color: #b0b0b0; grid-column: span 2; margin-top: 5px; font-weight: 400; }
 
+        /* Scrollable Stats Section */
         .stats {
             margin-top: 25px;
             padding: 15px;
             background: #fffcfb;
             border-radius: 20px;
             border: 1px solid #fef1ee;
+            max-height: 150px;       /* Fixed max height */
+            overflow-y: auto;        /* Enables vertical scrolling */
+        }
+
+        /* Styling scrollbar for smooth, cute look */
+        .stats::-webkit-scrollbar {
+            width: 6px;
+        }
+        .stats::-webkit-scrollbar-thumb {
+            background-color: #ffd7ba;
+            border-radius: 10px;
         }
 
         .cycle-item { 
             display: flex; justify-content: space-between; 
             padding: 10px 0; border-bottom: 1px dashed #ffd7ba;
             font-size: 0.8em; color: #6d597a;
+        }
+        .cycle-item:last-child {
+            border-bottom: none;
         }
     </style>
 </head>
@@ -172,7 +188,7 @@
         <button class="btn-del" onclick="clearDate()">Clear Selected Date</button>
     </div>
     <div class="stats">
-        <strong style="font-size: 0.85em;">Cycle Intervals (Start to Start)</strong>
+        <strong style="font-size: 0.85em; color: #6d597a; display: block; margin-bottom: 5px;">Cycle Intervals (Start to Start)</strong>
         <div id="cycleStats"></div>
     </div>
 </div>
